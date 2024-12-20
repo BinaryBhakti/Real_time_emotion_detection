@@ -1,0 +1,30 @@
+{
+    "happy": [
+        "Your smile lights up the room!",
+        "That joy looks amazing on you!",
+        "Your happiness is contagious!",
+        "You radiate such positive energy!"
+    ],
+    "neutral": [
+        "Your presence is calm and confident!",
+        "You have such a composed demeanor!",
+        "Your tranquility is inspiring!",
+        "You carry yourself with such grace!"
+    ],
+    "sad": [
+        "You've got this, keep going!",
+        "Tomorrow will be brighter!",
+        "Your strength is admirable!",
+        "Every storm runs out of rain!"
+    ],
+    "surprised": [
+        "Your expressions are so genuine!",
+        "You bring such life to every moment!",
+        "Your enthusiasm is wonderful!"
+    ],
+    "default": [
+        "You look wonderful today!",
+        "Your presence makes a difference!",
+        "You have such a unique charm!"
+    ]
+}

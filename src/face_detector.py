@@ -3,6 +3,9 @@ import numpy as np
 from fer import FER
 import logging
 from datetime import datetime
+from pathlib import Path
+import random
+import json
 
 class SmartDetector:
     def __init__(self):
@@ -12,6 +15,8 @@ class SmartDetector:
         
         self.emotion_detector = FER(mtcnn=True)
         self.emotion_threshold = 0.5
+        self.compliments = self._load_compliments()
+        self.used_compliments = set()
         
         logging.basicConfig(
             filename=f'smart_detector_{datetime.now().strftime("%Y%m%d")}.log',
@@ -63,46 +68,98 @@ class SmartDetector:
     
     def process_frame(self, frame):
         faces = self.detect_faces(frame)
-        
+
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-        
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
         emotion_data = self.detect_emotion(frame)
-        
+
         if emotion_data:
             box = emotion_data['box']
             emotion = emotion_data['emotion']
             probability = emotion_data['probability']
-            
-            cv2.rectangle(
-                frame,
-                (box[0], box[1]),
-                (box[0] + box[2], box[1] + box[3]),
-                (0, 255, 0),
-                2
-            )
-            
-            cv2.putText(
-                frame,
-                f"{emotion}: {probability:.2f}",
-                (box[0], box[1] - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (0, 255, 0),
-                2
-            )
-        
+
+            if box and len(box) == 4:
+                cv2.rectangle(
+                    frame,
+                    (max(0, box[0]), max(0, box[1])),
+                    (min(frame.shape[1], box[0] + box[2]), min(frame.shape[0], box[1] + box[3])),
+                    (0, 255, 0),
+                    2
+                )
+
+                cv2.putText(
+                    frame,
+                    f"{emotion}: {probability:.2f}",
+                    (box[0], box[1] - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9,
+                    (0, 255, 0),
+                    2
+                )
+
+                # Generate a compliment based on the emotion
+                compliment = self.get_compliment(emotion)
+                cv2.putText(
+                    frame,
+                    compliment,
+                    (box[0], box[1] + box[3] + 20),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (255, 255, 255),
+                    2
+                )
+
         return frame, faces, emotion_data
-    
+
+    def _load_compliments(self):
+        try:
+            compliments_path = Path(__file__).parent.parent / 'data' / 'compliments.json'
+            with open(compliments_path, 'r') as f:
+                compliments = json.load(f)
+                logging.info(f"Compliments loaded: {compliments}")
+                return compliments
+        except FileNotFoundError:
+            logging.error("Compliments file not found; using default compliments.")
+            return {"default": ["You look wonderful today!"]}
+        except Exception as e:
+            logging.error(f"Error loading compliments: {str(e)}")
+            return {}
+
+    def get_compliment(self, emotion):
+        try:
+            available_compliments = self.compliments.get(
+                emotion,
+                self.compliments.get('default', ['You look wonderful today!'])
+            )
+
+            unused_compliments = [
+                c for c in available_compliments
+                if c not in self.used_compliments
+            ]
+
+            if not unused_compliments:
+                self.used_compliments.clear()
+                unused_compliments = available_compliments
+
+            compliment = random.choice(unused_compliments)
+            self.used_compliments.add(compliment)
+
+            logging.info(f"Compliment for {emotion}: {compliment}")
+            return compliment
+        except Exception as e:
+            logging.error(f"Error generating compliment: {str(e)}")
+            return "You look wonderful today!"
+
     def run(self):
         self.start_video_capture()
         
         try:
             while True:
                 ret, frame = self.cap.read()
-                if not ret:
-                    logging.error("Failed to grab frame")
-                    break
+                if not ret or frame is None:
+                    logging.warning("Empty frame received; skipping.")
+                    continue
                 
                 frame, faces, emotion_data = self.process_frame(frame)
                 
@@ -117,7 +174,7 @@ class SmartDetector:
             self.cleanup()
     
     def cleanup(self):
-        if self.cap is not None:
+        if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
         cv2.destroyAllWindows()
         logging.info("Detection system shutdown complete")
