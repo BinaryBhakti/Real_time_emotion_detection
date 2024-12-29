@@ -29,7 +29,7 @@ class SmartDetector:
 
         # Load compliments and initialize tracking
         self.compliments = self._load_compliments()
-        self.used_compliments = set()
+        self.previous_emotion = None
 
         # Initialize text-to-speech
         try:
@@ -152,22 +152,7 @@ class SmartDetector:
     def get_compliment(self, emotion):
         """Get a random unused compliment for the given emotion."""
         try:
-            available_compliments = self.compliments.get(
-                emotion,
-                self.compliments.get('neutral', ['You look wonderful today!'])
-            )
-
-            unused_compliments = [
-                c for c in available_compliments
-                if c not in self.used_compliments
-            ]
-
-            if not unused_compliments:
-                self.used_compliments.clear()
-                unused_compliments = available_compliments
-
-            compliment = random.choice(unused_compliments)
-            self.used_compliments.add(compliment)
+            compliment = random.choice(self.compliments[emotion])
 
             logging.info(f"Compliment for {emotion}: {compliment}")
             return compliment
@@ -223,10 +208,10 @@ class SmartDetector:
                 )
 
                 # Generate and display compliment
-                if emotion not in self.used_compliments:
+                if emotion != self.previous_emotion:
                     compliment = self.get_compliment(emotion)
                     self.speak_compliment(compliment)
-                    self.used_compliments.add(emotion)
+                    self.previous_emotion = emotion
 
                 cv2.putText(
                     frame,
